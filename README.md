@@ -13,6 +13,23 @@ This repository contains:
 - UV package manager for Python (recommended) – see `https://docs.astral.sh/uv/`
 - Docker and Docker Compose (optional, for containerized dev/prod)
 
+### Get the code
+
+Clone with submodules to pull `composer-trade-mcp` in one step:
+
+```bash
+git clone --recurse-submodules https://github.com/SolarWolf-Code/composer-stats.git
+cd composer-stats
+```
+
+If you already cloned without submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+Repo: [composer-stats repo](https://github.com/SolarWolf-Code/composer-stats)
+
 ---
 
 ## Local development
