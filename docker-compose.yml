@@ -11,10 +11,13 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:8000}
+        API_INTERNAL_ORIGIN: ${API_INTERNAL_ORIGIN:-http://api:8000}
     ports:
       - "7949:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8123}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://api:8000}
     depends_on:
       - api
     restart: unless-stopped

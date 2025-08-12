@@ -1,0 +1,27 @@
+services:
+  api-dev:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "8124:8000"
+    restart: unless-stopped
+
+  web-dev:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        # Use internal Docker DNS name so the Next.js server inside the container can reach the API
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api-dev:8000}
+        API_INTERNAL_ORIGIN: ${API_INTERNAL_ORIGIN:-http://api-dev:8000}
+    ports:
+      - "7950:3000"
+    environment:
+      # Optional at runtime; rewrites are baked at build time via build.args above
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://api-dev:8000}
+    depends_on:
+      - api-dev
+    restart: unless-stopped
+
+volumes: {}

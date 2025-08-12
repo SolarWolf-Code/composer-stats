@@ -10,7 +10,11 @@ from ..clients.composer_mcp import (
     fetch_symphonies,
     fetch_symphony_daily_performance,
 )
-from ..deps.auth_headers import apply_request_headers, headers_from_env_or_ctx, set_ctx_headers
+from ..deps.auth_headers import (
+    apply_request_headers,
+    headers_from_env_or_ctx,
+    set_ctx_headers,
+)
 from ..services.performance_calc import (
     compute_lookback_return,
     compute_stats_from_series,
@@ -44,7 +48,9 @@ async def get_performance(
             import base64
 
             try:
-                basic = base64.b64encode(f"{api_key_id}:{api_secret}".encode("utf-8")).decode("utf-8")
+                basic = base64.b64encode(
+                    f"{api_key_id}:{api_secret}".encode("utf-8")
+                ).decode("utf-8")
                 hdrs = {"authorization": f"Basic {basic}"}
                 if env:
                     hdrs["x-composer-mcp-environment"] = env
@@ -82,7 +88,11 @@ async def get_performance(
                     {
                         "dates": sym_dates,
                         "depo": [float(x) for x in depo_series],
-                        "value": [float(x) for x in value_series] if value_series else [None] * len(sym_dates),
+                        "value": (
+                            [float(x) for x in value_series]
+                            if value_series
+                            else [None] * len(sym_dates)
+                        ),
                         "date_index": {d: i for i, d in enumerate(sym_dates)},
                     },
                 )
@@ -154,11 +164,80 @@ async def get_performance(
                 continue
             weighted_sum += v_prev * r_i
             total_value_prev += v_prev
-        daily_returns[idx] = (weighted_sum / total_value_prev) if total_value_prev > 0 else 0.0
+        daily_returns[idx] = (
+            (weighted_sum / total_value_prev) if total_value_prev > 0 else 0.0
+        )
 
     series: List[float] = [10000.0]
     for idx in range(1, len(dates)):
         series.append(series[-1] * (1.0 + daily_returns[idx]))
+
+    # Attempt to append an intraday "today" point using current symphony stats if available.
+    try:
+        from datetime import date as _date
+
+        today_str = _date.today().isoformat()
+        if today_str not in dates:
+            # Build a quick lookup of current deposit-adjusted value and current total value per symphony from meta
+            current_meta: Dict[str, Dict[str, float]] = {}
+            for sym in symphonies:
+                sym_id = (
+                    sym.get("id") or sym.get("symphony_id") or sym.get("symphonyId")
+                )
+                if not sym_id:
+                    continue
+                # Prefer common keys; fall back across known variants
+                depo_now = sym.get("deposit_adjusted_value")
+                total_now = (
+                    sym.get("value")
+                    or sym.get("total_value")
+                    or sym.get("portfolio_value")
+                )
+                try:
+                    depo_now_f = float(depo_now) if depo_now is not None else None  # type: ignore[arg-type]
+                    total_now_f = float(total_now) if total_now is not None else None  # type: ignore[arg-type]
+                except Exception:
+                    depo_now_f = None
+                    total_now_f = None
+                if depo_now_f is not None and total_now_f is not None:
+                    current_meta[str(sym_id)] = {
+                        "depo": depo_now_f,
+                        "value": total_now_f,
+                    }
+
+            weighted_sum_today = 0.0
+            total_value_prev_today = 0.0
+            if current_meta:
+                last_completed = dates[-1]
+                for sym_id, perf in sym_to_perf.items():
+                    meta = current_meta.get(sym_id)
+                    if not meta:
+                        continue
+                    di = perf.get("date_index", {})
+                    if last_completed not in di:
+                        continue
+                    i_prev = di[last_completed]
+                    depo_prev = perf["depo"][i_prev]
+                    v_prev_list = perf.get("value", [])
+                    v_prev = v_prev_list[i_prev] if i_prev < len(v_prev_list) else None
+                    if (
+                        depo_prev is None
+                        or depo_prev == 0
+                        or v_prev is None
+                        or v_prev <= 0
+                    ):
+                        continue
+                    r_i_today = (meta["depo"] / float(depo_prev)) - 1.0
+                    weighted_sum_today += float(v_prev) * r_i_today
+                    total_value_prev_today += float(v_prev)
+
+            if total_value_prev_today > 0:
+                r_today = weighted_sum_today / total_value_prev_today
+                dates.append(today_str)
+                series.append(series[-1] * (1.0 + r_today))
+    except Exception:
+        # If anything goes wrong, skip intraday augmentation silently
+        pass
 
     from typing import Dict as _Dict
 
@@ -199,16 +278,20 @@ async def get_performance(
             current_spy = 10000.0
         else:
             r = (close / prev_spy_close) - 1.0
-            current_spy *= (1.0 + r)
+            current_spy *= 1.0 + r
         normalized_spy.append(current_spy)
         prev_spy_close = close
 
     for idx, dt in enumerate(dates):
-        data.append({
-            "date": dt[5:10],
-            "portfolio": round(normalized_portfolio[idx]),
-            "sp500": round(normalized_spy[idx]),
-        })
+        data.append(
+            {
+                "date": dt[5:10],
+                "portfolio": round(normalized_portfolio[idx]),
+                "sp500": round(normalized_spy[idx]),
+            }
+        )
+
+    # print(data)
 
     stats_core = compute_stats_from_series(data)
     port_values = [float(v) for v in normalized_portfolio]
@@ -236,7 +319,11 @@ async def get_performance(
         "30d": compute_lookback_return(dates, port_values, 30),
         "90d": compute_lookback_return(dates, port_values, 90),
         "1y": compute_lookback_return(dates, port_values, 365),
-        "total": (port_values[-1] / port_values[0] - 1.0) if port_values and port_values[0] > 0 else 0.0,
+        "total": (
+            (port_values[-1] / port_values[0] - 1.0)
+            if port_values and port_values[0] > 0
+            else 0.0
+        ),
     }
     lookbacks_spy = {
         "today": spy_today,
@@ -244,9 +331,14 @@ async def get_performance(
         "30d": compute_lookback_return(dates, spy_values, 30),
         "90d": compute_lookback_return(dates, spy_values, 90),
         "1y": compute_lookback_return(dates, spy_values, 365),
-        "total": (spy_values[-1] / spy_values[0] - 1.0) if spy_values and spy_values[0] > 0 else 0.0,
+        "total": (
+            (spy_values[-1] / spy_values[0] - 1.0)
+            if spy_values and spy_values[0] > 0
+            else 0.0
+        ),
     }
-    stats = {**stats_core, "lookbacks": {"portfolio": lookbacks, "sp500": lookbacks_spy}}
+    stats = {
+        **stats_core,
+        "lookbacks": {"portfolio": lookbacks, "sp500": lookbacks_spy},
+    }
     return {"data": data, "stats": stats}
-
-
