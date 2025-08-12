@@ -62,10 +62,10 @@ docker compose up --build
 
 Services:
 
-- API: `http://localhost:8000` (exposes `/health`, `/api/performance`)
-- Web: `http://localhost:3000`
+- API: `http://localhost:8123` (exposes `/health`, `/api/performance`)
+- Web: `http://localhost:3123`
 
-The web app calls the API at `http://localhost:8000`. CORS is configured to allow localhost by default. Credentials are entered in the web UI (Login) and sent as headers per request.
+The web app calls the API at `http://localhost:8123` by default in Compose. You can override with `NEXT_PUBLIC_API_URL` in your environment. CORS is configured to allow localhost by default. Credentials are entered in the web UI (Login) and sent as headers per request.
 
 To run in detached mode:
 
