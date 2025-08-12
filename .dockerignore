@@ -1,0 +1,17 @@
+# Node
+**/node_modules
+**/.next
+**/.turbo
+
+# Python/uv
+**/.venv
+**/__pycache__
+**/*.pyc
+
+# VCS/Editor
+.git
+.gitignore
+.DS_Store
+.env
+
+

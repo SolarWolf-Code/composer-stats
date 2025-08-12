@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: composer-stats-api
+Version: 0.3.0
+Summary: FastAPI service exposing Composer portfolio performance endpoints
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: composer-trade-mcp
+Requires-Dist: fastapi>=0.115.0
+Requires-Dist: yfinance>=0.2.52
+Requires-Dist: uvicorn[standard]

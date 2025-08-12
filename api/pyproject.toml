@@ -1,0 +1,24 @@
+[project]
+name = "composer-stats-api"
+version = "0.3.0"
+description = "FastAPI service exposing Composer portfolio performance endpoints"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "composer-trade-mcp",
+    "fastapi>=0.115.0",
+    "yfinance>=0.2.52",
+    "uvicorn[standard]",
+]
+
+[project.scripts]
+composer-stats-api = "composer_stats_api.__main__:main"
+
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+composer-trade-mcp = { path = "../composer-trade-mcp" }
+
+[tool.uv.workspace]
+members = []

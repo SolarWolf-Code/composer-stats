@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web:/app/web
+      - web_node_modules:/app/web/node_modules
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  web_node_modules:
+
+

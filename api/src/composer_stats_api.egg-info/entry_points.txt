@@ -1,0 +1,2 @@
+[console_scripts]
+composer-stats-api = composer_stats_api.__main__:main
