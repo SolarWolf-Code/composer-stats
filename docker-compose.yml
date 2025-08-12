@@ -19,5 +19,4 @@ services:
       - api
     restart: unless-stopped
 
-volumes:
-  web_node_modules:
+volumes: {}

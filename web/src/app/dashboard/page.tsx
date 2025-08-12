@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { PerformanceChart, type PerformancePoint } from "@/components/performance-chart"
 import { DrawdownChart, type DrawdownPoint } from "@/components/drawdown-chart"
@@ -31,12 +31,14 @@ type ApiResponse = {
     }
 }
 
+export const dynamic = "force-dynamic"
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL
     || (typeof window !== "undefined"
         ? `${window.location.protocol}//${window.location.hostname}:8000`
         : "http://localhost:8000")
 
-export default function DashboardPage() {
+function DashboardContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const [data, setData] = useState<PerformancePoint[] | null>(null)
@@ -90,6 +92,7 @@ export default function DashboardPage() {
                 if (!cancelled) setLoading(false)
             }
         }
+        // Wrap in suspense at call-site, but ensure no SSR data requirement by deferring to client
         run()
         return () => {
             cancelled = true
@@ -299,6 +302,14 @@ export default function DashboardPage() {
                 </Card>
             </div>
         </div>
+    )
+}
+
+export default function DashboardPage() {
+    return (
+        <Suspense fallback={<div className="w-full min-h-dvh flex items-center justify-center p-6">Loading…</div>}>
+            <DashboardContent />
+        </Suspense>
     )
 }
 
