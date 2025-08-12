@@ -1,0 +1,3 @@
+[submodule "composer-trade-mcp"]
+	path = composer-trade-mcp
+	url = https://github.com/invest-composer/composer-trade-mcp
