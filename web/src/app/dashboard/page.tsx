@@ -33,9 +33,14 @@ type ApiResponse = {
 
 export const dynamic = "force-dynamic"
 
+// Prefer env when provided; otherwise:
+// - On localhost, default to API at port 8000 (local dev)
+// - In production (non-localhost), use same-origin (""), relying on reverse proxy to route /api
 const API_BASE = process.env.NEXT_PUBLIC_API_URL
     || (typeof window !== "undefined"
-        ? `${window.location.protocol}//${window.location.hostname}:8000`
+        ? (["localhost", "127.0.0.1"].includes(window.location.hostname)
+            ? `${window.location.protocol}//${window.location.hostname}:8000`
+            : "")
         : "http://localhost:8000")
 
 function DashboardContent() {
@@ -62,7 +67,8 @@ function DashboardContent() {
             setLoading(true)
             setError(null)
             try {
-                const url = `${API_BASE}/api/performance${qs}`
+                const base = API_BASE?.replace(/\/$/, "")
+                const url = `${base}/api/performance${qs}`
                 // Read credentials from localStorage (in-memory BYO creds, no server session)
                 const apiKeyId = localStorage.getItem("composer_api_key_id")
                 const apiSecret = localStorage.getItem("composer_api_secret")

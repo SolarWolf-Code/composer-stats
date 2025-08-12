@@ -4,7 +4,10 @@ from fastapi import FastAPI
 
 def install_cors(app: FastAPI) -> None:
     # Fixed, development-friendly CORS. All configuration is driven from the frontend.
-    allowed_origins = ["http://localhost:3000"]
+    allowed_origins = [
+        "http://localhost:3000",
+        "https://icstats.solarwolf.xyz",
+    ]
     allowed_origin_regex = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
     app.add_middleware(
         CORSMiddleware,
@@ -14,5 +17,3 @@ def install_cors(app: FastAPI) -> None:
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
     )
-
-

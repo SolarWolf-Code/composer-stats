@@ -12,7 +12,7 @@ services:
       context: .
       dockerfile: web/Dockerfile
     ports:
-      - "3123:3000"
+      - "7949:3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8123}
     depends_on:
