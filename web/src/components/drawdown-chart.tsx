@@ -55,20 +55,19 @@ export function DrawdownChart({ data }: DrawdownChartProps) {
                     cursor={{ strokeDasharray: "3 3" }}
                     content={
                         <ChartTooltipContent
-                            formatter={(value, name, item: any) => {
+                            formatter={(value: number | string, name: string, item: any) => {
                                 const indicatorColor = (item?.payload?.fill || item?.color) as string
                                 const label = (chartConfig as any)[String(name)]?.label ?? String(name)
+                                const pct = `${(Number(value) * 100).toFixed(2)}%`
                                 return (
-                                    <div className="flex w-full items-center gap-2">
+                                    <div className="flex w-full items-center gap-4">
                                         <div
                                             className="h-2 w-2 shrink-0 rounded-[2px]"
                                             style={{ backgroundColor: indicatorColor }}
                                         />
                                         <div className="flex flex-1 justify-between leading-none items-center">
-                                            <span className="text-muted-foreground">{label}</span>
-                                            <span className="text-foreground font-mono font-medium tabular-nums">
-                                                {`${(Number(value) * 100).toFixed(2)}%`}
-                                            </span>
+                                            <span className="text-muted-foreground pr-6">{label}</span>
+                                            <span className="text-foreground font-mono font-medium tabular-nums pl-2">{pct}</span>
                                         </div>
                                     </div>
                                 )

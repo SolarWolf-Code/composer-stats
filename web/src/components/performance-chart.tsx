@@ -55,9 +55,32 @@ export function PerformanceChart({ data }: PerformanceChartProps) {
                     domain={yDomain as [number, number]}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v) => `$${Number(v).toLocaleString()}`}
+                    tickFormatter={(v: number) => `$${Number(v).toLocaleString()}`}
                 />
-                <ChartTooltip cursor={{ strokeDasharray: "3 3" }} content={<ChartTooltipContent />} />
+                <ChartTooltip
+                    cursor={{ strokeDasharray: "3 3" }}
+                    content={
+                        <ChartTooltipContent
+                            formatter={(value: number | string, name: string, item: any) => {
+                                const indicatorColor = (item?.payload?.fill || item?.color) as string
+                                const label = (chartConfig as any)[String(name)]?.label ?? String(name)
+                                const dollars = `$${Number(value).toLocaleString()}`
+                                return (
+                                    <div className="flex w-full items-center gap-4">
+                                        <div
+                                            className="h-2 w-2 shrink-0 rounded-[2px]"
+                                            style={{ backgroundColor: indicatorColor }}
+                                        />
+                                        <div className="flex flex-1 justify-between leading-none items-center">
+                                            <span className="text-muted-foreground pr-6">{label}</span>
+                                            <span className="text-foreground font-mono font-medium tabular-nums pl-2">{dollars}</span>
+                                        </div>
+                                    </div>
+                                )
+                            }}
+                        />
+                    }
+                />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Line
                     type="linear"
