@@ -26,14 +26,22 @@ export function DateFilters() {
         router.replace(q ? `?${q}` : "?")
     }
 
+    const onLogout = () => {
+        try {
+            localStorage.removeItem("composer_api_key_id")
+            localStorage.removeItem("composer_api_secret")
+        } catch (_) { }
+        router.replace("/login")
+    }
+
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
-            <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">Start date</label>
+        <div className="grid grid-cols-1 sm:grid-cols-6 gap-2 w-full">
+            <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="text-[10px] text-muted-foreground">Start</label>
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 px-3 text-xs justify-between">
-                            <span className="truncate">{start || "Select start"}</span>
+                        <Button variant="outline" className="h-8 px-2 text-[10px] justify-between min-w-[110px]">
+                            <span className="truncate">{start || "Start"}</span>
                             <span className="ml-2 text-muted-foreground">▾</span>
                         </Button>
                     </PopoverTrigger>
@@ -47,12 +55,12 @@ export function DateFilters() {
                     </PopoverContent>
                 </Popover>
             </div>
-            <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">End date</label>
+            <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="text-[10px] text-muted-foreground">End</label>
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 px-3 text-xs justify-between">
-                            <span className="truncate">{end || "Select end"}</span>
+                        <Button variant="outline" className="h-8 px-2 text-[10px] justify-between min-w-[110px]">
+                            <span className="truncate">{end || "End"}</span>
                             <span className="ml-2 text-muted-foreground">▾</span>
                         </Button>
                     </PopoverTrigger>
@@ -66,9 +74,12 @@ export function DateFilters() {
                     </PopoverContent>
                 </Popover>
             </div>
-            <div className="flex items-end">
-                <Button onClick={() => update({ start: "", end: "" })} variant="outline" className="h-9 w-full text-xs">
+            <div className="flex items-end gap-2 sm:col-span-2">
+                <Button onClick={() => update({ start: "", end: "" })} variant="secondary" className="h-8 px-3 text-[10px]">
                     Reset
+                </Button>
+                <Button onClick={onLogout} variant="destructive" className="h-8 px-3 text-[10px] shrink-0">
+                    Logout
                 </Button>
             </div>
         </div>

@@ -221,23 +221,8 @@ function DashboardContent() {
 
     return (
         <div className="w-full p-4 space-y-4">
-            <div className="flex items-center justify-between">
-                <div />
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault()
-                        try {
-                            localStorage.removeItem("composer_api_key_id")
-                            localStorage.removeItem("composer_api_secret")
-                        } catch (_) { }
-                        router.replace('/login')
-                    }}
-                >
-                    <button className="text-xs underline text-muted-foreground" type="submit">Logout</button>
-                </form>
-            </div>
             {/* Top KPI cards for lookback returns with filters at end */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-y-1 gap-x-3 items-stretch">
+            <div className="grid grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-y-1 gap-x-2 items-stretch">
                 {[
                     { key: "today", label: "Today" },
                     { key: "7d", label: "7D" },
@@ -250,18 +235,18 @@ function DashboardContent() {
                     const spy = stats.lookbacks?.sp500?.[p.key] ?? 0
                     return (
                         <Card key={p.key} className="py-0.5 gap-0">
-                            <CardHeader className="px-3 pb-0 pt-0.5">
-                                <CardTitle className="text-[11px] font-medium">{p.label}</CardTitle>
+                            <CardHeader className="px-2 pb-0 pt-0.5">
+                                <CardTitle className="text-[10px] font-medium">{p.label}</CardTitle>
                             </CardHeader>
-                            <CardContent className="px-3 pt-0 pb-1">
-                                <div className={`text-base font-bold leading-tight ${port > 0 ? "text-green-500" : port < 0 ? "text-red-500" : ""}`}>{formatPct(port)}</div>
-                                <p className={`text-[9px] leading-tight ${spy > 0 ? "text-green-500" : spy < 0 ? "text-red-500" : "text-muted-foreground"}`}>SPY {formatPct(spy)}</p>
+                            <CardContent className="px-2 pt-0 pb-1">
+                                <div className={`text-sm font-bold leading-tight ${port > 0 ? "text-green-500" : port < 0 ? "text-red-500" : ""}`}>{formatPct(port)}</div>
+                                <p className={`text-[10px] leading-tight ${spy > 0 ? "text-green-500" : spy < 0 ? "text-red-500" : "text-muted-foreground"}`}>SPY {formatPct(spy)}</p>
                             </CardContent>
                         </Card>
                     )
                 })}
                 {/* Date filters in last column */}
-                <div className="flex items-center justify-end">
+                <div className="flex items-center justify-end md:col-span-3 lg:col-span-6">
                     <DateFilters />
                 </div>
             </div>
@@ -285,7 +270,7 @@ function DashboardContent() {
                                 <TableRow>
                                     <TableHead>Metric</TableHead>
                                     <TableHead>SPY</TableHead>
-                                    <TableHead>Total Portfolio</TableHead>
+                                    <TableHead>Composer</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>

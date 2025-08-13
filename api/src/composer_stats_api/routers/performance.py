@@ -58,6 +58,14 @@ async def get_performance(
             except Exception:
                 pass
 
+    # Fail fast with 401 if no credentials are present after attempting header extraction
+    headers = headers_from_env_or_ctx()
+    if not isinstance(headers, dict) or not headers.get("authorization"):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Composer credentials. Provide Authorization: Basic ... or x-api-key-id/x-api-secret headers.",
+        )
+
     if not account_uuid:
         try:
             account_uuid = await fetch_default_account_uuid()
@@ -172,69 +180,69 @@ async def get_performance(
     for idx in range(1, len(dates)):
         series.append(series[-1] * (1.0 + daily_returns[idx]))
 
-    # Attempt to append an intraday "today" point using current symphony stats if available.
+    # Always override/append the current day using intraday deposit-adjusted values,
+    # because Composer may zero-out today's daily point mid-session.
+    intraday_return: float | None = None
     try:
         from datetime import date as _date
 
         today_str = _date.today().isoformat()
-        if today_str not in dates:
-            # Build a quick lookup of current deposit-adjusted value and current total value per symphony from meta
-            current_meta: Dict[str, Dict[str, float]] = {}
-            for sym in symphonies:
-                sym_id = (
-                    sym.get("id") or sym.get("symphony_id") or sym.get("symphonyId")
-                )
-                if not sym_id:
-                    continue
-                # Prefer common keys; fall back across known variants
-                depo_now = sym.get("deposit_adjusted_value")
-                total_now = (
-                    sym.get("value")
-                    or sym.get("total_value")
-                    or sym.get("portfolio_value")
-                )
-                try:
-                    depo_now_f = float(depo_now) if depo_now is not None else None  # type: ignore[arg-type]
-                    total_now_f = float(total_now) if total_now is not None else None  # type: ignore[arg-type]
-                except Exception:
-                    depo_now_f = None
-                    total_now_f = None
-                if depo_now_f is not None and total_now_f is not None:
-                    current_meta[str(sym_id)] = {
-                        "depo": depo_now_f,
-                        "value": total_now_f,
-                    }
+
+        # Build a quick lookup of current deposit-adjusted value and current total value per symphony from meta
+        current_meta: Dict[str, Dict[str, float]] = {}
+        # print(symphonies)
+        for sym in symphonies:
+            sym_id = sym.get("id") or sym.get("symphony_id") or sym.get("symphonyId")
+            if not sym_id:
+                continue
+            depo_now = sym.get("deposit_adjusted_value")
+            total_now = (
+                sym.get("value") or sym.get("total_value") or sym.get("portfolio_value")
+            )
+            try:
+                depo_now_f = float(depo_now) if depo_now is not None else None  # type: ignore[arg-type]
+                total_now_f = float(total_now) if total_now is not None else None  # type: ignore[arg-type]
+            except Exception:
+                depo_now_f = None
+                total_now_f = None
+            if depo_now_f is not None and total_now_f is not None:
+                current_meta[str(sym_id)] = {"depo": depo_now_f, "value": total_now_f}
+
+        if current_meta and dates:
+            # Determine the last fully completed day (yesterday or prior).
+            last_completed = dates[-1]
+            if last_completed == today_str and len(dates) >= 2:
+                last_completed = dates[-2]
 
             weighted_sum_today = 0.0
             total_value_prev_today = 0.0
-            if current_meta:
-                last_completed = dates[-1]
-                for sym_id, perf in sym_to_perf.items():
-                    meta = current_meta.get(sym_id)
-                    if not meta:
-                        continue
-                    di = perf.get("date_index", {})
-                    if last_completed not in di:
-                        continue
-                    i_prev = di[last_completed]
-                    depo_prev = perf["depo"][i_prev]
-                    v_prev_list = perf.get("value", [])
-                    v_prev = v_prev_list[i_prev] if i_prev < len(v_prev_list) else None
-                    if (
-                        depo_prev is None
-                        or depo_prev == 0
-                        or v_prev is None
-                        or v_prev <= 0
-                    ):
-                        continue
-                    r_i_today = (meta["depo"] / float(depo_prev)) - 1.0
-                    weighted_sum_today += float(v_prev) * r_i_today
-                    total_value_prev_today += float(v_prev)
+            for sym_id, perf in sym_to_perf.items():
+                meta = current_meta.get(sym_id)
+                if not meta:
+                    continue
+                di = perf.get("date_index", {})
+                if last_completed not in di:
+                    continue
+                i_prev = di[last_completed]
+                depo_prev = perf["depo"][i_prev]
+                v_prev_list = perf.get("value", [])
+                v_prev = v_prev_list[i_prev] if i_prev < len(v_prev_list) else None
+                if depo_prev is None or depo_prev == 0 or v_prev is None or v_prev <= 0:
+                    continue
+                r_i_today = (meta["depo"] / float(depo_prev)) - 1.0
+                weighted_sum_today += float(v_prev) * r_i_today
+                total_value_prev_today += float(v_prev)
 
             if total_value_prev_today > 0:
                 r_today = weighted_sum_today / total_value_prev_today
-                dates.append(today_str)
-                series.append(series[-1] * (1.0 + r_today))
+                intraday_return = r_today
+                if dates and dates[-1] == today_str and len(series) >= 2:
+                    # Override the existing last point for today
+                    series[-1] = series[-2] * (1.0 + r_today)
+                else:
+                    # Append a fresh intraday point for today
+                    dates.append(today_str)
+                    series.append(series[-1] * (1.0 + r_today))
     except Exception:
         # If anything goes wrong, skip intraday augmentation silently
         pass
@@ -296,7 +304,9 @@ async def get_performance(
     stats_core = compute_stats_from_series(data)
     port_values = [float(v) for v in normalized_portfolio]
     spy_values = [float(v) for v in normalized_spy]
-    if len(port_values) >= 2 and port_values[-2] > 0:
+    if intraday_return is not None:
+        port_today = intraday_return
+    elif len(port_values) >= 2 and port_values[-2] > 0:
         port_today = (port_values[-1] / port_values[-2]) - 1.0
     else:
         port_today = 0.0
