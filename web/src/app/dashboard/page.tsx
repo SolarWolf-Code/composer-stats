@@ -104,28 +104,10 @@ type LiveVsBacktestData = {
     }>
 }
 
-// For browser requests, always use the external port based on current environment
-const getApiBase = () => {
-    if (typeof window === "undefined") {
-        return "http://localhost:8124"
-    }
-
-    // In browser, determine the correct API port based on the web port
-    const currentPort = window.location.port
-    let apiPort = "8124" // default dev port
-
-    if (currentPort === "7949") {
-        apiPort = "8123" // production docker-compose
-    } else if (currentPort === "7950") {
-        apiPort = "8124" // dev docker-compose
-    } else if (currentPort === "3000" || currentPort === "3123") {
-        apiPort = "8123" // local development
-    }
-
-    return `${window.location.protocol}//${window.location.hostname}:${apiPort}`
-}
-
-const API_BASE = getApiBase()
+// Use relative paths to proxy API requests through Next.js server
+// The Next.js rewrites in next.config.mjs will forward /api/* to the backend API
+// This keeps the API internal to the Docker network and hidden from clients
+const API_BASE = ""
 
 export default function DashboardPage() {
     const router = useRouter()
