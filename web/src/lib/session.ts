@@ -5,6 +5,7 @@ export interface SessionData {
     apiKeyId?: string;
     apiSecret?: string;
     isLoggedIn: boolean;
+    csrfToken?: string;
 }
 
 export const sessionOptions: SessionOptions = {
@@ -13,7 +14,7 @@ export const sessionOptions: SessionOptions = {
     cookieOptions: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "strict", // Strict mode since we have CSRF token protection
         maxAge: 60 * 60 * 24 * 7, // 7 days
     },
 };

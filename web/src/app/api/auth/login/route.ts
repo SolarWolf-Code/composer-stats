@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
+import { validateCsrfToken, regenerateCsrfToken } from "@/lib/csrf";
 
 export async function POST(request: NextRequest) {
+    // CSRF protection
+    const csrfError = await validateCsrfToken(request);
+    if (csrfError) return csrfError;
+
     try {
         const body = await request.json();
         const { apiKeyId, apiSecret } = body;
@@ -19,6 +24,9 @@ export async function POST(request: NextRequest) {
         session.apiSecret = apiSecret;
         session.isLoggedIn = true;
         await session.save();
+
+        // Regenerate CSRF token after login (OWASP recommendation)
+        await regenerateCsrfToken();
 
         return NextResponse.json({ success: true });
     } catch (error) {

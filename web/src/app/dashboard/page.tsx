@@ -804,8 +804,24 @@ export default function DashboardPage() {
                             <button
                                 className="btn"
                                 onClick={async () => {
-                                    await fetch('/api/auth/logout', { method: 'POST' });
-                                    router.push('/login');
+                                    try {
+                                        // Get CSRF token before logout
+                                        const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'include' });
+                                        const { csrfToken } = await csrfResponse.json();
+
+                                        // Logout with CSRF token
+                                        await fetch('/api/auth/logout', {
+                                            method: 'POST',
+                                            headers: {
+                                                'x-csrf-token': csrfToken,
+                                            },
+                                            credentials: 'include'
+                                        });
+                                        router.push('/login');
+                                    } catch (error) {
+                                        console.error('Logout failed:', error);
+                                        router.push('/login');
+                                    }
                                 }}
                                 aria-label="Logout"
                                 style={{ marginLeft: 'auto' }}

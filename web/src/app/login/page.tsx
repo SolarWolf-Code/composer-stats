@@ -23,12 +23,23 @@ export default function LoginPage() {
                 return
             }
 
-            // Send credentials to server-side session
+            // Get CSRF token from server
+            const csrfResponse = await fetch("/api/auth/csrf", { credentials: "include" })
+            if (!csrfResponse.ok) {
+                setError("Failed to get security token")
+                setLoading(false)
+                return
+            }
+            const { csrfToken } = await csrfResponse.json()
+
+            // Send credentials to server-side session with CSRF token
             const response = await fetch("/api/auth/login", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "x-csrf-token": csrfToken,
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     apiKeyId: apiKeyId.trim(),
                     apiSecret: apiSecret.trim(),
