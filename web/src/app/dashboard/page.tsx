@@ -123,7 +123,6 @@ export default function DashboardPage() {
     const [loadingBacktest, setLoadingBacktest] = useState(false)
     const [expandedSymphonies, setExpandedSymphonies] = useState<Set<string>>(new Set())
     const [symphonyComparisonData, setSymphonyComparisonData] = useState<Map<string, any>>(new Map())
-    // Sidebar is permanently collapsed to show only icons
     const [sortField, setSortField] = useState<string>("name")
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
     const [deviationSortField, setDeviationSortField] = useState<string>("risk_score")
@@ -815,25 +814,7 @@ export default function DashboardPage() {
 
     return (
         <>
-            <div className="sidebar collapsed">
-                <div className="logo">
-                    <h1>ComposerAnalytics</h1>
-                    <p>Professional Trading Analytics</p>
-                </div>
-
-                <nav className="nav-menu">
-                    <a href="#" className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')} title="Portfolio Overview">
-                        <i className="fas fa-chart-line"></i>
-                        <span>Portfolio</span>
-                    </a>
-                    <a href="#" className={`nav-item ${activeTab === 'risk' ? 'active' : ''}`} onClick={() => { setActiveTab('risk'); if (!liveVsBacktestData) loadLiveVsBacktest(); }} title="Risk & Analysis">
-                        <i className="fas fa-shield-alt"></i>
-                        <span>Risk & Analysis</span>
-                    </a>
-                </nav>
-            </div>
-
-            <div className="main-content sidebar-collapsed">
+            <div className="main-content">
                 <div className="header">
                     <div className="header-top">
                         <h1 className="page-title">Portfolio Dashboard</h1>
