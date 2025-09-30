@@ -2,3 +2,5 @@ composer-trade-mcp
 fastapi>=0.115.0
 yfinance>=0.2.52
 uvicorn[standard]
+aiohttp>=3.12.15
+tqdm>=4.67.1

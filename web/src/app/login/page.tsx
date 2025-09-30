@@ -2,10 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
 
 export default function LoginPage() {
     const router = useRouter()
@@ -50,55 +46,105 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-dvh w-full flex items-center justify-center p-4">
-            <Card className="w-full max-w-sm">
-                <CardHeader>
-                    <CardTitle className="text-lg">Sign in to Composer Stats</CardTitle>
-                    <p className="text-xs text-muted-foreground">Enter your API credentials. They are stored only in your browser and used per request.</p>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={onSubmit} className="space-y-3">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="apiKeyId">API Key ID</Label>
-                            <Input
-                                id="apiKeyId"
+        <div style={{
+            minHeight: '100vh',
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            backgroundColor: '#0a0e1a'
+        }}>
+            <div className="card" style={{ width: '100%', maxWidth: '400px' }}>
+                <div className="card-header">
+                    <h3 className="card-title">Sign in to ComposerAnalytics</h3>
+                    <p style={{ fontSize: '12px', color: '#787b86', marginTop: '8px' }}>
+                        Enter your API credentials. They are stored only in your browser and used per request.
+                    </p>
+                </div>
+                <div className="card-body">
+                    <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div>
+                            <label style={{
+                                display: 'block',
+                                color: '#e1e5e9',
+                                fontSize: '14px',
+                                marginBottom: '6px',
+                                fontWeight: '500'
+                            }}>
+                                API Key ID
+                            </label>
+                            <input
+                                type="text"
                                 value={apiKeyId}
                                 onChange={(e) => setApiKeyId(e.target.value)}
                                 placeholder="ck_..."
                                 required
                                 autoFocus
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    backgroundColor: '#1e222d',
+                                    border: '1px solid #363a45',
+                                    borderRadius: '4px',
+                                    color: '#e1e5e9',
+                                    fontSize: '14px'
+                                }}
                             />
                         </div>
-                        <div className="space-y-1.5">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="apiSecret">API Secret</Label>
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                <label style={{
+                                    color: '#e1e5e9',
+                                    fontSize: '14px',
+                                    fontWeight: '500'
+                                }}>
+                                    API Secret
+                                </label>
                                 <button
                                     type="button"
-                                    className="text-[11px] underline text-muted-foreground"
-                                    onClick={() => setShowSecret((s) => !s)}
+                                    onClick={() => setShowSecret(!showSecret)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#787b86',
+                                        fontSize: '11px',
+                                        textDecoration: 'underline',
+                                        cursor: 'pointer'
+                                    }}
                                 >
                                     {showSecret ? "Hide" : "Show"}
                                 </button>
                             </div>
-                            <Input
-                                id="apiSecret"
+                            <input
+                                type={showSecret ? "text" : "password"}
                                 value={apiSecret}
                                 onChange={(e) => setApiSecret(e.target.value)}
                                 placeholder="cs_..."
-                                type={showSecret ? "text" : "password"}
                                 required
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    backgroundColor: '#1e222d',
+                                    border: '1px solid #363a45',
+                                    borderRadius: '4px',
+                                    color: '#e1e5e9',
+                                    fontSize: '14px'
+                                }}
                             />
                         </div>
-                        {error && <div className="text-xs text-red-500">{error}</div>}
-                        <div className="flex items-center gap-2 pt-1">
-                            <Button type="submit" className="flex-1">Save & Continue</Button>
-                            <Button type="button" variant="secondary" onClick={onClear}>Clear</Button>
+                        {error && <div style={{ color: '#ff5b5b', fontSize: '12px' }}>{error}</div>}
+                        <div style={{ display: 'flex', gap: '8px', paddingTop: '8px' }}>
+                            <button type="submit" className="btn primary" style={{ flex: 1 }}>
+                                Save & Continue
+                            </button>
+                            <button type="button" className="btn" onClick={onClear}>
+                                Clear
+                            </button>
                         </div>
                     </form>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     )
 }
-
-

@@ -8,3 +8,5 @@ Requires-Dist: composer-trade-mcp
 Requires-Dist: fastapi>=0.115.0
 Requires-Dist: yfinance>=0.2.52
 Requires-Dist: uvicorn[standard]
+Requires-Dist: aiohttp>=3.12.15
+Requires-Dist: tqdm>=4.67.1
