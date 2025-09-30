@@ -312,19 +312,6 @@ export default function DashboardPage() {
         setLoading(true)
         setError(null)
         try {
-            const apiKeyId = localStorage.getItem("composer_api_key_id")
-            const apiSecret = localStorage.getItem("composer_api_secret")
-            if (!apiKeyId || !apiSecret) {
-                router.replace("/login")
-                return
-            }
-
-            const headers = {
-                "Authorization": `Basic ${btoa(`${apiKeyId}:${apiSecret}`)}`,
-                "x-api-key-id": apiKeyId,
-                "x-api-secret": apiSecret,
-            }
-
             // Build query parameters for date range
             const params = new URLSearchParams()
             if (startDate) params.append('start', startDate)
@@ -332,12 +319,13 @@ export default function DashboardPage() {
             const queryString = params.toString() ? `?${params.toString()}` : ''
 
             // Load performance, allocation, symphonies, risk comparison, and portfolio risk data
+            // Credentials are automatically injected server-side from session
             const [perfRes, allocRes, symphRes, riskRes, portfolioRiskRes] = await Promise.all([
-                fetch(`${API_BASE}/api/performance${queryString}`, { headers, cache: "no-store" }),
-                fetch(`${API_BASE}/api/allocation`, { headers, cache: "no-store" }),
-                fetch(`${API_BASE}/api/symphonies`, { headers, cache: "no-store" }),
-                fetch(`${API_BASE}/api/risk-comparison`, { headers, cache: "no-store" }),
-                fetch(`${API_BASE}/api/portfolio-risk`, { headers, cache: "no-store" })
+                fetch(`${API_BASE}/api/performance${queryString}`, { cache: "no-store" }),
+                fetch(`${API_BASE}/api/allocation`, { cache: "no-store" }),
+                fetch(`${API_BASE}/api/symphonies`, { cache: "no-store" }),
+                fetch(`${API_BASE}/api/risk-comparison`, { cache: "no-store" }),
+                fetch(`${API_BASE}/api/portfolio-risk`, { cache: "no-store" })
             ])
 
             if (perfRes.status === 401 || allocRes.status === 401 || symphRes.status === 401 || riskRes.status === 401 || portfolioRiskRes.status === 401) {
@@ -376,18 +364,8 @@ export default function DashboardPage() {
     const loadLiveVsBacktest = async () => {
         setLoadingBacktest(true)
         try {
-            const apiKeyId = localStorage.getItem("composer_api_key_id")
-            const apiSecret = localStorage.getItem("composer_api_secret")
-            if (!apiKeyId || !apiSecret) return
-
-            const headers = {
-                "Authorization": `Basic ${btoa(`${apiKeyId}:${apiSecret}`)}`,
-                "x-api-key-id": apiKeyId,
-                "x-api-secret": apiSecret,
-            }
-
+            // Credentials are automatically injected server-side from session
             const response = await fetch(`${API_BASE}/api/portfolio/live-vs-backtest`, {
-                headers,
                 cache: "no-store"
             })
 
@@ -409,18 +387,8 @@ export default function DashboardPage() {
 
     const loadSymphonyComparison = async (symphonyId: string) => {
         try {
-            const apiKeyId = localStorage.getItem("composer_api_key_id")
-            const apiSecret = localStorage.getItem("composer_api_secret")
-            if (!apiKeyId || !apiSecret) return
-
-            const headers = {
-                "Authorization": `Basic ${btoa(`${apiKeyId}:${apiSecret}`)}`,
-                "x-api-key-id": apiKeyId,
-                "x-api-secret": apiSecret,
-            }
-
+            // Credentials are automatically injected server-side from session
             const response = await fetch(`${API_BASE}/api/symphony/${symphonyId}/live-vs-backtest`, {
-                headers,
                 cache: "no-store"
             })
 
@@ -818,7 +786,7 @@ export default function DashboardPage() {
                 <div className="header">
                     <div className="header-top">
                         <h1 className="page-title">Portfolio Dashboard</h1>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                             <button
                                 className={`btn ${activeTab === 'overview' ? 'primary' : ''}`}
                                 onClick={() => setActiveTab('overview')}
@@ -832,6 +800,17 @@ export default function DashboardPage() {
                                 aria-label="Go to Risk & Analysis"
                             >
                                 Risk & Analysis
+                            </button>
+                            <button
+                                className="btn"
+                                onClick={async () => {
+                                    await fetch('/api/auth/logout', { method: 'POST' });
+                                    router.push('/login');
+                                }}
+                                aria-label="Logout"
+                                style={{ marginLeft: 'auto' }}
+                            >
+                                Logout
                             </button>
                         </div>
                         <div className="performance-metrics">

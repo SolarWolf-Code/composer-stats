@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
@@ -9,40 +9,51 @@ export default function LoginPage() {
     const [apiSecret, setApiSecret] = useState("")
     const [showSecret, setShowSecret] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [loading, setLoading] = useState(false)
 
-    useEffect(() => {
-        try {
-            const k = localStorage.getItem("composer_api_key_id") || ""
-            const s = localStorage.getItem("composer_api_secret") || ""
-            setApiKeyId(k)
-            setApiSecret(s)
-        } catch (_) { }
-    }, [])
-
-    function onSubmit(e: React.FormEvent) {
+    async function onSubmit(e: React.FormEvent) {
         e.preventDefault()
         setError(null)
+        setLoading(true)
+
         try {
             if (!apiKeyId || !apiSecret) {
                 setError("Please enter both API Key ID and Secret")
+                setLoading(false)
                 return
             }
-            localStorage.setItem("composer_api_key_id", apiKeyId.trim())
-            localStorage.setItem("composer_api_secret", apiSecret.trim())
+
+            // Send credentials to server-side session
+            const response = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    apiKeyId: apiKeyId.trim(),
+                    apiSecret: apiSecret.trim(),
+                }),
+            })
+
+            if (!response.ok) {
+                const data = await response.json()
+                setError(data.error || "Failed to save credentials")
+                setLoading(false)
+                return
+            }
+
+            // Redirect to dashboard
             router.push("/dashboard")
         } catch (err: any) {
             setError("Failed to save credentials")
+            setLoading(false)
         }
     }
 
     function onClear() {
-        try {
-            localStorage.removeItem("composer_api_key_id")
-            localStorage.removeItem("composer_api_secret")
-            setApiKeyId("")
-            setApiSecret("")
-            setError(null)
-        } catch (_) { }
+        setApiKeyId("")
+        setApiSecret("")
+        setError(null)
     }
 
     return (
@@ -135,10 +146,10 @@ export default function LoginPage() {
                         </div>
                         {error && <div style={{ color: '#ff5b5b', fontSize: '12px' }}>{error}</div>}
                         <div style={{ display: 'flex', gap: '8px', paddingTop: '8px' }}>
-                            <button type="submit" className="btn primary" style={{ flex: 1 }}>
-                                Save & Continue
+                            <button type="submit" className="btn primary" style={{ flex: 1 }} disabled={loading}>
+                                {loading ? "Saving..." : "Save & Continue"}
                             </button>
-                            <button type="button" className="btn" onClick={onClear}>
+                            <button type="button" className="btn" onClick={onClear} disabled={loading}>
                                 Clear
                             </button>
                         </div>

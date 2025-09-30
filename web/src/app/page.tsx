@@ -7,19 +7,21 @@ export default function HomePage() {
     const router = useRouter()
 
     useEffect(() => {
-        // Check if user has credentials, if so redirect to dashboard
-        try {
-            const apiKeyId = localStorage.getItem("composer_api_key_id")
-            const apiSecret = localStorage.getItem("composer_api_secret")
-
-            if (apiKeyId && apiSecret) {
-                router.replace("/dashboard")
-            } else {
+        // Check if user has active session
+        async function checkSession() {
+            try {
+                const response = await fetch("/api/auth/session")
+                if (response.ok) {
+                    router.replace("/dashboard")
+                } else {
+                    router.replace("/login")
+                }
+            } catch {
                 router.replace("/login")
             }
-        } catch {
-            router.replace("/login")
         }
+
+        checkSession()
     }, [router])
 
     return (

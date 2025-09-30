@@ -20,6 +20,9 @@ services:
     environment:
       # Optional at runtime; rewrites are baked at build time via build.args above
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://api-dev:8000}
+      - API_INTERNAL_ORIGIN=${API_INTERNAL_ORIGIN:-http://api-dev:8000}
+      - SESSION_SECRET=${SESSION_SECRET:-dev_secret_at_least_32_characters_long_change_in_production}
+      - NODE_ENV=development
     depends_on:
       - api-dev
     restart: unless-stopped
