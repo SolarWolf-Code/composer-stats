@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Tuple
 
 import asyncio
 import yfinance as yf
+import numpy as np
+
 
 
 def compute_stats_from_series(series: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -148,8 +150,215 @@ def _current_drawdown(values: List[float]) -> float:
     return last / peak - 1.0 if peak > 0 else 0.0
 
 
-def compute_detailed_metrics_from_values(values: List[float]) -> Dict[str, float]:
-    if not values or len(values) < 2:
+def compute_total_return_from_returns(daily_returns: List[float]) -> float:
+    """Calculate total cumulative return from daily returns."""
+    if not daily_returns:
+        return 0.0
+    cumulative = 1.0
+    for r in daily_returns:
+        cumulative *= (1.0 + r)
+    return cumulative - 1.0
+
+
+def compute_cagr_from_returns(daily_returns: List[float], annual_days: int = 252) -> float:
+    """
+    Calculate Compound Annual Growth Rate from daily returns.
+    
+    Parameters:
+        daily_returns: List of daily returns
+        annual_days: Trading days per year (default 252)
+        
+    Returns:
+        CAGR as decimal (e.g., 0.15 = 15% per year)
+    """
+    if not daily_returns:
+        return 0.0
+    
+    cumulative = 1.0
+    for r in daily_returns:
+        cumulative *= (1.0 + r)
+    
+    years = len(daily_returns) / annual_days
+    if years <= 0:
+        return 0.0
+    
+    return cumulative ** (1.0 / years) - 1.0
+
+
+def compute_volatility_from_returns(daily_returns: List[float], annual_days: int = 252) -> float:
+    """
+    Calculate annualized volatility (standard deviation) from daily returns.
+    
+    Parameters:
+        daily_returns: List of daily returns
+        annual_days: Trading days per year (default 252)
+        
+    Returns:
+        Annualized volatility as decimal
+    """
+    if not daily_returns or len(daily_returns) < 2:
+        return 0.0
+    
+    mean = sum(daily_returns) / len(daily_returns)
+    variance = sum((r - mean) ** 2 for r in daily_returns) / (len(daily_returns) - 1)
+    daily_std = variance ** 0.5
+    
+    return daily_std * (annual_days ** 0.5)
+
+
+def compute_sharpe_from_returns(daily_returns: List[float], annual_days: int = 252, risk_free_rate: float = 0.0) -> float:
+    """
+    Calculate Sharpe ratio from daily returns.
+    
+    Parameters:
+        daily_returns: List of daily returns
+        annual_days: Trading days per year (default 252)
+        risk_free_rate: Annual risk-free rate (default 0.0)
+        
+    Returns:
+        Sharpe ratio
+    """
+    if not daily_returns:
+        return 0.0
+    
+    cagr = compute_cagr_from_returns(daily_returns, annual_days)
+    volatility = compute_volatility_from_returns(daily_returns, annual_days)
+    
+    if volatility == 0:
+        return 0.0
+    
+    return (cagr - risk_free_rate) / volatility
+
+
+def compute_sortino_from_returns(daily_returns: List[float], annual_days: int = 252, risk_free_rate: float = 0.0) -> float:
+    """
+    Calculate Sortino ratio from daily returns (uses downside deviation only).
+    
+    Parameters:
+        daily_returns: List of daily returns
+        annual_days: Trading days per year (default 252)
+        risk_free_rate: Annual risk-free rate (default 0.0)
+        
+    Returns:
+        Sortino ratio
+    """
+    if not daily_returns:
+        return 0.0
+    
+    cagr = compute_cagr_from_returns(daily_returns, annual_days)
+    negatives = [r for r in daily_returns if r < 0]
+    
+    if not negatives:
+        return cagr if cagr > 0 else 0.0
+    
+    # Calculate downside deviation
+    neg_mean = sum(negatives) / len(negatives)
+    neg_variance = sum((r - neg_mean) ** 2 for r in negatives) / max(1, len(negatives) - 1)
+    downside_std = neg_variance ** 0.5
+    downside_vol = downside_std * (annual_days ** 0.5)
+    
+    if downside_vol == 0:
+        return 0.0
+    
+    return (cagr - risk_free_rate) / downside_vol
+
+
+def compute_max_drawdown_from_returns(daily_returns: List[float]) -> Tuple[float, float]:
+    """
+    Calculate maximum drawdown and current drawdown from daily returns.
+    
+    Parameters:
+        daily_returns: List of daily returns
+        
+    Returns:
+        Tuple of (max_drawdown, current_drawdown) as negative decimals
+    """
+    if not daily_returns:
+        return 0.0, 0.0
+    
+    cumulative = 1.0
+    peak = 1.0
+    max_dd = 0.0
+    
+    for r in daily_returns:
+        cumulative *= (1.0 + r)
+        peak = max(peak, cumulative)
+        dd = (cumulative - peak) / peak
+        max_dd = min(max_dd, dd)
+    
+    current_dd = (cumulative - peak) / peak
+    
+    return abs(max_dd), current_dd
+
+
+def compute_risk_reward(daily_returns):
+    """
+    Compute risk/reward ratio from daily returns.
+
+    Args:
+        daily_returns (array-like): Daily returns as floats.
+
+    Returns:
+        float: Risk/Reward ratio (avg win / avg loss as positive number).
+    """
+    daily_returns = np.asarray(daily_returns, dtype=float)
+    wins = daily_returns[daily_returns > 0]
+    losses = daily_returns[daily_returns < 0]
+
+    if wins.size == 0 or losses.size == 0:
+        return None
+
+    avg_win = wins.mean()
+    avg_loss = losses.mean()  # negative number
+
+    return avg_win / abs(avg_loss)
+
+
+def compute_win_loss_stats(daily_returns: List[float]) -> Dict[str, float]:
+    """
+    Calculate win/loss statistics from daily returns.
+    
+    Parameters:
+        daily_returns: List of daily returns
+        
+    Returns:
+        Dictionary with win_rate, avg_win, avg_loss, largest_win, largest_loss
+    """
+    if not daily_returns:
+        return {
+            "win_rate": 0.0,
+            "avg_win": 0.0,
+            "avg_loss": 0.0,
+            "largest_win": 0.0,
+            "largest_loss": 0.0,
+        }
+    
+    positives = [r for r in daily_returns if r > 0]
+    negatives = [r for r in daily_returns if r < 0]
+    
+    return {
+        "win_rate": len(positives) / len(daily_returns),
+        "avg_win": sum(positives) / len(positives) if positives else 0.0,
+        "avg_loss": sum(negatives) / len(negatives) if negatives else 0.0,
+        "largest_win": max(daily_returns),
+        "largest_loss": min(daily_returns),
+    }
+
+
+def compute_metrics_from_daily_returns(daily_returns: List[float], annual_days: int = 252) -> Dict[str, float]:
+    """
+    Compute comprehensive metrics from daily returns.
+    
+    Parameters:
+        daily_returns: List of daily returns as decimals (e.g., 0.01 = 1%)
+        annual_days: Number of trading days in a year (default 252)
+        
+    Returns:
+        Dictionary with all performance metrics
+    """
+    print(f"Daily returns: {daily_returns}")
+
+    if not daily_returns or len(daily_returns) < 1:
         return {
             "total_return": 0.0,
             "cagr": 0.0,
@@ -166,45 +375,48 @@ def compute_detailed_metrics_from_values(values: List[float]) -> Dict[str, float
             "reward_risk": 0.0,
             "current_dd": 0.0,
         }
-
-    n = len(values)
-    total_return = values[-1] / values[0] - 1.0 if values[0] > 0 else 0.0
-    daily_returns = _daily_returns_from_values(values)
-    mean = sum(daily_returns) / len(daily_returns)
-    variance = sum((r - mean) ** 2 for r in daily_returns) / max(1, len(daily_returns) - 1)
-    daily_std = variance ** 0.5
-    ann_std = daily_std * (252 ** 0.5)
-    cagr = (values[-1] / values[0]) ** (252 / n) - 1.0 if values[0] > 0 else 0.0
-    positives = [r for r in daily_returns if r > 0]
-    negatives = [r for r in daily_returns if r < 0]
-    win_rate = len(positives) / len(daily_returns) if daily_returns else 0.0
-    avg_win = sum(positives) / len(positives) if positives else 0.0
-    avg_loss = sum(negatives) / len(negatives) if negatives else 0.0
-    largest_win = max(daily_returns) if daily_returns else 0.0
-    largest_loss = min(daily_returns) if daily_returns else 0.0
-    max_dd = _max_drawdown_from_values(values)
-    sharpe = (cagr / ann_std) if ann_std > 0 else 0.0
-    downside_std = (sum(r * r for r in negatives) / max(1, len(negatives))) ** 0.5 if negatives else 0.0
-    sortino = (cagr / (downside_std * (252 ** 0.5))) if downside_std > 0 else 0.0
-    reward_risk = (cagr / ann_std) if ann_std > 0 else 0.0
-    curr_dd = _current_drawdown(values)
-
+    
+    # Calculate all metrics using dedicated functions
+    total_return = compute_total_return_from_returns(daily_returns)
+    cagr = compute_cagr_from_returns(daily_returns, annual_days)
+    volatility = compute_volatility_from_returns(daily_returns, annual_days)
+    sharpe = compute_sharpe_from_returns(daily_returns, annual_days)
+    sortino = compute_sortino_from_returns(daily_returns, annual_days)
+    reward_risk = compute_risk_reward(daily_returns)
+    max_dd, current_dd = compute_max_drawdown_from_returns(daily_returns)
+    win_loss = compute_win_loss_stats(daily_returns)
+    
+    # Calculate average daily return
+    avg_daily = sum(daily_returns) / len(daily_returns)
+    
     return {
         "total_return": total_return,
         "cagr": cagr,
-        "win_rate": win_rate,
-        "avg_win": avg_win,
-        "avg_loss": avg_loss,
-        "avg_daily": mean,
-        "largest_win": largest_win,
-        "largest_loss": largest_loss,
+        "win_rate": win_loss["win_rate"],
+        "avg_win": win_loss["avg_win"],
+        "avg_loss": win_loss["avg_loss"],
+        "avg_daily": avg_daily,
+        "largest_win": win_loss["largest_win"],
+        "largest_loss": win_loss["largest_loss"],
         "max_drawdown": max_dd,
-        "ann_std": ann_std,
+        "ann_std": volatility,
         "sharpe": sharpe,
         "sortino": sortino,
-        "reward_risk": reward_risk,
-        "current_dd": curr_dd,
+        "reward_risk": reward_risk if reward_risk is not None else 0.0,
+        "current_dd": current_dd,
     }
+
+
+def compute_detailed_metrics_from_values(values: List[float]) -> Dict[str, float]:
+    """
+    Compute metrics from price values by first calculating daily returns.
+    This is a convenience wrapper around compute_metrics_from_daily_returns.
+    """
+    if not values or len(values) < 2:
+        return compute_metrics_from_daily_returns([])
+    
+    daily_returns = _daily_returns_from_values(values)
+    return compute_metrics_from_daily_returns(daily_returns)
 
 
 async def fetch_spy_metrics(start: str, end: str) -> Dict[str, float]:

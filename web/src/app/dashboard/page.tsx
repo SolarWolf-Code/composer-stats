@@ -1141,23 +1141,43 @@ export default function DashboardPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {riskComparisonData?.metrics.map((row, index) => (
-                                                    <tr key={index}>
-                                                        <td>
-                                                            <div className="symphony-name">{row.metric}</div>
-                                                        </td>
-                                                        <td>
-                                                            <span className={`change-indicator ${row.spy.startsWith('-') ? 'negative' : 'positive'}`}>
-                                                                {row.spy}
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <span className={`change-indicator ${row.composer.startsWith('-') ? 'negative' : 'positive'}`}>
-                                                                {row.composer}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                )) || (
+                                                {riskComparisonData?.metrics.map((row, index) => {
+                                                    // Parse values for comparison
+                                                    const spyValue = parseFloat(row.spy.replace('%', ''))
+                                                    const composerValue = parseFloat(row.composer.replace('%', ''))
+
+                                                    // Determine which metrics are "better" when lower vs higher
+                                                    // For losses, drawdowns, and volatility, lower absolute values are better
+                                                    const lowerIsBetter = row.metric.toLowerCase().includes('loss') ||
+                                                        row.metric.toLowerCase().includes('dd') ||
+                                                        row.metric.toLowerCase().includes('std')
+
+                                                    // For metrics like losses/drawdowns, compare absolute values since they may be negative
+                                                    const spyAbs = Math.abs(spyValue)
+                                                    const composerAbs = Math.abs(composerValue)
+
+                                                    // Determine winning side
+                                                    const spyWins = lowerIsBetter ? spyAbs < composerAbs : spyValue > composerValue
+                                                    const composerWins = lowerIsBetter ? composerAbs < spyAbs : composerValue > spyValue
+
+                                                    return (
+                                                        <tr key={index}>
+                                                            <td>
+                                                                <div className="symphony-name">{row.metric}</div>
+                                                            </td>
+                                                            <td>
+                                                                <span className={`change-indicator ${spyWins ? 'positive' : 'negative'}`}>
+                                                                    {row.spy}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <span className={`change-indicator ${composerWins ? 'positive' : 'negative'}`}>
+                                                                    {row.composer}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    )
+                                                }) || (
                                                         <tr>
                                                             <td colSpan={3} style={{ textAlign: 'center', color: '#787b86' }}>
                                                                 Loading risk comparison data...

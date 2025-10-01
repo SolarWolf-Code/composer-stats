@@ -31,7 +31,7 @@ from ..services.performance_calc import (
     calculate_consistency_score,
 )
 from ..services.deviation_calc import compute_deviation_metrics
-
+from ..services.performance_calc import compute_metrics_from_daily_returns
 
 router = APIRouter()
 
@@ -667,32 +667,63 @@ async def get_risk_comparison(
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
-    # Calculate Composer metrics
-    total_value = sum(s.get("value", 0) for s in symphonies)
-    total_deposits = sum(s.get("net_deposits", 0) for s in symphonies)
+    # First, fetch symphony-level daily performance to get the actual date range
+    # Same logic as in the /api/performance endpoint
+    sym_to_perf: Dict[str, Dict[str, Any]] = {}
+    all_dates_set: set[str] = set()
+
+    sem = asyncio.Semaphore(8)
+
+    async def fetch_sym(sym_id: str) -> tuple[str, Dict[str, Any] | None]:
+        async with sem:
+            try:
+                perf = await fetch_symphony_daily_performance(account_uuid, sym_id)
+                sym_dates: List[str] = perf.get("dates", [])
+                depo_series: List[float] = perf.get("deposit_adjusted_series", [])
+                value_series: List[float] = perf.get("series", [])
+                if not sym_dates or not depo_series:
+                    return (sym_id, None)
+                return (
+                    sym_id,
+                    {
+                        "dates": sym_dates,
+                        "depo": [float(x) for x in depo_series],
+                        "value": (
+                            [float(x) for x in value_series]
+                            if value_series
+                            else [None] * len(sym_dates)
+                        ),
+                        "date_index": {d: i for i, d in enumerate(sym_dates)},
+                    },
+                )
+            except Exception:
+                return (sym_id, None)
+
+    tasks: List[asyncio.Task] = []
+    for sym in symphonies:
+        sym_id = sym.get("id") or sym.get("symphony_id") or sym.get("symphonyId")
+        if sym_id:
+            tasks.append(asyncio.create_task(fetch_sym(sym_id)))
+
+    for sym_id, perf in await asyncio.gather(*tasks):
+        if perf is None:
+            continue
+        sym_to_perf[sym_id] = perf
+        all_dates_set.update(perf["dates"])
+
+    dates: List[str] = sorted(all_dates_set)
     
-    # Total return
-    composer_total_return = (total_value - total_deposits) / total_deposits if total_deposits > 0 else 0
+    if not dates:
+        raise HTTPException(status_code=404, detail="No performance data available for portfolio")
     
-    # Calculate portfolio-weighted metrics
-    composer_sharpe = sum(s.get("sharpe_ratio", 0) * (s.get("value", 0) / total_value) for s in symphonies) if total_value > 0 else 0
-    composer_max_drawdown = max(abs(s.get("max_drawdown", 0)) for s in symphonies) if symphonies else 0
-    composer_avg_return = sum(s.get("annualized_rate_of_return", 0) * (s.get("value", 0) / total_value) for s in symphonies) if total_value > 0 else 0
+    # Now fetch SPY data for the SAME date range as the portfolio
+    portfolio_start_date = dates[0]  # First date in portfolio
+    portfolio_end_date = dates[-1]   # Last date in portfolio
     
-    # Estimate volatility from Sharpe and returns
-    composer_volatility = abs(composer_avg_return / composer_sharpe) if composer_sharpe != 0 else 0.15
+    print(f"Fetching SPY data from {portfolio_start_date} to {portfolio_end_date}")
+    print(f"Portfolio has {len(dates)} trading days")
     
-    # Calculate Sortino ratio (approximation using max drawdown)
-    composer_sortino = composer_avg_return / composer_max_drawdown if composer_max_drawdown > 0 else 0
-    
-    # Calculate reward/risk ratio
-    composer_reward_risk = composer_avg_return / composer_volatility if composer_volatility > 0 else 0
-    
-    # Compute real SPY metrics using yfinance closes
-    from datetime import datetime, timedelta
-    end_date = datetime.utcnow().date()
-    start_date = end_date - timedelta(days=365)
-    spy_stats = await fetch_spy_metrics(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
+    spy_stats = await fetch_spy_metrics(portfolio_start_date, portfolio_end_date)
     spy_total_return = spy_stats.get("total_return", 0.0)
     spy_cagr = spy_stats.get("cagr", 0.0)
     spy_win_rate = spy_stats.get("win_rate", 0.0)
@@ -706,26 +737,58 @@ async def get_risk_comparison(
     spy_sharpe = spy_stats.get("sharpe", 0.0)
     spy_sortino = spy_stats.get("sortino", 0.0)
     spy_reward_risk = spy_stats.get("reward_risk", 0.0)
-
-    # Calculate Composer daily metrics (approximations from available data)
-    composer_daily_returns = [s.get("last_percent_change", 0) for s in symphonies]
-    composer_positive_returns = [r for r in composer_daily_returns if r > 0]
-    composer_negative_returns = [r for r in composer_daily_returns if r < 0]
-    
-    composer_win_rate = len(composer_positive_returns) / len(composer_daily_returns) if composer_daily_returns else 0.60
-    composer_avg_win = sum(composer_positive_returns) / len(composer_positive_returns) if composer_positive_returns else 0.0037
-    composer_avg_loss = sum(composer_negative_returns) / len(composer_negative_returns) if composer_negative_returns else -0.0058
-    composer_avg_daily = sum(composer_daily_returns) / len(composer_daily_returns) if composer_daily_returns else 0.0003
-    composer_largest_win = max(composer_daily_returns) if composer_daily_returns else 0.0125
-    composer_largest_loss = min(composer_daily_returns) if composer_daily_returns else -0.0177
-    
-    # Current drawdown (approximate)
-    composer_current_dd = min(s.get("last_percent_change", 0) for s in symphonies) if symphonies else 0.0
     spy_current_dd = spy_stats.get("current_dd", 0.0)
     
-    # CAGR calculation
-    composer_cagr = composer_avg_return  # Already annualized
+    # Calculate portfolio-level daily returns
+    composer_daily_returns: List[float] = []
+    if len(dates) > 1:
+        for idx in range(1, len(dates)):
+            d_prev = dates[idx - 1]
+            d_curr = dates[idx]
+            weighted_sum = 0.0
+            total_value_prev = 0.0
+            for perf in sym_to_perf.values():
+                di = perf["date_index"]
+                if d_curr not in di or d_prev not in di:
+                    continue
+                i_prev = di[d_prev]
+                i_curr = di[d_curr]
+                depo_prev = perf["depo"][i_prev]
+                depo_curr = perf["depo"][i_curr]
+                if depo_prev is None or depo_prev == 0:
+                    continue
+                r_i = (depo_curr / depo_prev) - 1.0
+                v_prev_list = perf["value"]
+                v_prev = v_prev_list[i_prev] if i_prev < len(v_prev_list) else None
+                if v_prev is None or v_prev <= 0:
+                    continue
+                weighted_sum += v_prev * r_i
+                total_value_prev += v_prev
+            daily_return = (weighted_sum / total_value_prev) if total_value_prev > 0 else 0.0
+            composer_daily_returns.append(daily_return)
     
+    print(f"Composer daily returns (first 10): {composer_daily_returns[:10]}")
+    print(f"Total daily returns: {len(composer_daily_returns)}")
+    
+    # Use the shared metrics calculation function for Composer portfolio
+    composer_metrics = compute_metrics_from_daily_returns(composer_daily_returns)
+    
+    # Extract values for compatibility with existing code
+    composer_total_return = composer_metrics["total_return"]
+    composer_cagr = composer_metrics["cagr"]
+    composer_volatility = composer_metrics["ann_std"]
+    composer_sharpe = composer_metrics["sharpe"]
+    composer_sortino = composer_metrics["sortino"]
+    composer_reward_risk = composer_metrics["reward_risk"]
+    composer_max_drawdown = composer_metrics["max_drawdown"]
+    composer_current_dd = composer_metrics["current_dd"]
+    composer_win_rate = composer_metrics["win_rate"]
+    composer_avg_win = composer_metrics["avg_win"]
+    composer_avg_loss = composer_metrics["avg_loss"]
+    composer_avg_daily = composer_metrics["avg_daily"]
+    composer_largest_win = composer_metrics["largest_win"]
+    composer_largest_loss = composer_metrics["largest_loss"]
+
     return {
         "metrics": [
             {"metric": "Total %", "spy": f"{spy_total_return*100:.2f}%", "composer": f"{composer_total_return*100:.2f}%"},
