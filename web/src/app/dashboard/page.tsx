@@ -1232,12 +1232,12 @@ export default function DashboardPage() {
                                                                     <i className={`fas fa-chevron-${deviationSortDirection === 'asc' ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '4px' }}></i>
                                                                 )}
                                                             </th>
-                                                            <th className="hide-mobile" onClick={() => handleDeviationSort('tracking_error')} style={{ cursor: 'pointer' }}>
+                                                            <th onClick={() => handleDeviationSort('tracking_error')} style={{ cursor: 'pointer' }}>
                                                                 Tracking Error {deviationSortField === 'tracking_error' && (
                                                                     <i className={`fas fa-chevron-${deviationSortDirection === 'asc' ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '4px' }}></i>
                                                                 )}
                                                             </th>
-                                                            <th className="hide-mobile" onClick={() => handleDeviationSort('correlation')} style={{ cursor: 'pointer' }}>
+                                                            <th onClick={() => handleDeviationSort('correlation')} style={{ cursor: 'pointer' }}>
                                                                 Correlation {deviationSortField === 'correlation' && (
                                                                     <i className={`fas fa-chevron-${deviationSortDirection === 'asc' ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '4px' }}></i>
                                                                 )}
@@ -1318,12 +1318,44 @@ export default function DashboardPage() {
                                                                             <div className="symphony-name">{symphony.symphony_name}</div>
                                                                         </td>
                                                                         <td>
-                                                                            <span className={`change-indicator ${symphony.risk_score > 50 ? 'negative' : symphony.risk_score > 25 ? 'warning' : 'positive'}`}>
-                                                                                {symphony.risk_score.toFixed(1)}
-                                                                            </span>
+                                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '100px' }}>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                                                    <span className={`change-indicator ${symphony.risk_score >= 75 ? 'negative' : symphony.risk_score >= 50 ? 'warning' : symphony.risk_score >= 10 ? 'neutral' : 'positive'}`} style={{ fontSize: '14px', fontWeight: '600' }}>
+                                                                                        {symphony.risk_score.toFixed(0)}
+                                                                                    </span>
+                                                                                    <span style={{
+                                                                                        fontSize: '10px',
+                                                                                        padding: '2px 5px',
+                                                                                        borderRadius: '3px',
+                                                                                        fontWeight: '700',
+                                                                                        textTransform: 'uppercase',
+                                                                                        letterSpacing: '0.3px',
+                                                                                        background: symphony.risk_score >= 75 ? '#ff5b5b20' : symphony.risk_score >= 50 ? '#ffb34020' : symphony.risk_score >= 10 ? '#787b8620' : '#00c89620',
+                                                                                        color: symphony.risk_score >= 75 ? '#ff5b5b' : symphony.risk_score >= 50 ? '#ffb340' : symphony.risk_score >= 10 ? '#787b86' : '#00c896',
+                                                                                        whiteSpace: 'nowrap'
+                                                                                    }}>
+                                                                                        {symphony.risk_score >= 75 ? 'High' : symphony.risk_score >= 50 ? 'Elev.' : symphony.risk_score >= 10 ? 'Mod.' : 'Low'}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div style={{
+                                                                                    width: '100%',
+                                                                                    maxWidth: '100px',
+                                                                                    height: '4px',
+                                                                                    background: '#2a2e39',
+                                                                                    borderRadius: '2px',
+                                                                                    overflow: 'hidden'
+                                                                                }}>
+                                                                                    <div style={{
+                                                                                        width: `${Math.min(symphony.risk_score, 100)}%`,
+                                                                                        height: '100%',
+                                                                                        background: symphony.risk_score >= 75 ? '#ff5b5b' : symphony.risk_score >= 50 ? '#ffb340' : symphony.risk_score >= 10 ? '#787b86' : '#00c896',
+                                                                                        transition: 'width 0.3s ease'
+                                                                                    }}></div>
+                                                                                </div>
+                                                                            </div>
                                                                         </td>
-                                                                        <td className="hide-mobile">{symphony.tracking_error_annualized_pct.toFixed(1)}%</td>
-                                                                        <td className="hide-mobile">{symphony.correlation.toFixed(3)}</td>
+                                                                        <td>{symphony.tracking_error_annualized_pct.toFixed(1)}%</td>
+                                                                        <td>{symphony.correlation.toFixed(3)}</td>
                                                                         <td>
                                                                             <span className={`change-indicator ${symphony.return_difference_pct >= 0 ? 'positive' : 'negative'}`}>
                                                                                 {symphony.return_difference_pct >= 0 ? '+' : ''}{symphony.return_difference_pct.toFixed(1)}%
